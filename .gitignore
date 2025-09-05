@@ -7,3 +7,6 @@ infrastructure_setup/tf/.terraform/providers/registry.terraform.io/terraform-pro
 infrastructure_setup/tf/.terraform/providers/registry.terraform.io/terraform-provider-openstack/openstack/1.53.0/darwin_amd64/terraform-provider-openstack_v1.53.0
 infrastructure_setup/tf/.terraform.lock.hcl
 infrastructure_setup/tf/terraform.tfstate
+
+# for mac os users
+.DS_Store
