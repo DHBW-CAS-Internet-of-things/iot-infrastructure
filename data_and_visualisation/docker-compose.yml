@@ -1,0 +1,56 @@
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    networks:
+      - monitor
+    volumes:
+      - "grafana_data:/var/lib/grafana"
+    user: "1000"
+
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    restart: always
+    ports:
+      - "8086:8086"
+    networks:
+      - monitor
+    volumes:
+      - "influxdb_data:/var/lib/influxdb2"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: ${INFLUXDB_INIT_MODE}
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    restart: always
+    networks:
+      - monitor
+    depends_on:
+      - influxdb
+    volumes:
+      - "./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro"
+    environment:
+      TELEGRAF_MQTT_SERVER: ${TELEGRAF_MQTT_SERVER}
+      TELEGRAF_MQTT_TOPICS: ${TELEGRAF_MQTT_TOPICS}
+      TELEGRAF_MQTT_USERNAME: ${TELEGRAF_MQTT_USERNAME}
+      TELEGRAF_MQTT_PASSWORD: ${TELEGRAF_MQTT_PASSWORD}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+
+networks:
+  monitor:
+
+volumes:
+  influxdb_data:
+  grafana_data:
