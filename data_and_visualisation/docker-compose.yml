@@ -9,7 +9,12 @@ services:
       - monitor
     volumes:
       - "grafana_data:/var/lib/grafana"
+      - "./grafana/provisioning:/etc/grafana/provisioning"
+    environment:
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
     user: "1000"
+    depends_on:
+      - influxdb
 
   influxdb:
     image: influxdb:latest
