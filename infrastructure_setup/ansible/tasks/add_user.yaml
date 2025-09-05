@@ -1,0 +1,46 @@
+
+- name: Create Loop Copy of User Object
+  set_fact: 
+    USR: "{{ USERMGMT_USER }}"
+
+- name: Set SSH Key Variable
+  set_fact: 
+    USERMGMT_SSHKEY: "./files/ssh_keys/{{ USR.NAME }}.pub"
+
+- name: Set Inital random password
+  set_fact: 
+    USERMGMT_PASSWD: "{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}"
+
+- name: Create user group {{ USR.NAME }}
+  ansible.builtin.group:
+    name: "{{ USR.NAME }}"
+    state: present
+
+- name: "add user {{ USR.NAME }}"
+  ansible.builtin.user:
+    name: "{{ USR.NAME }}"
+    group: "{{ USR.NAME }}"
+    groups: "{% if USR.GROUPS is defined %}{{ USR.GROUPS }}{% endif %}"
+    password: "{{ USERMGMT_PASSWD | password_hash('sha512') }}"
+    update_password: on_create
+    shell: "{{ USR.SHELL }}"
+    append: true
+
+- name: "Inital password for user {{ USR.NAME }}"
+  ansible.builtin.debug:
+    msg: "{{ USERMGMT_PASSWD }}"
+
+- name: add SSH-Key
+  ansible.posix.authorized_key:
+    user: "{{ USR.NAME }}"
+    state: present
+    key: "{{ lookup('file', '{{ USERMGMT_SSHKEY }}') }}"
+    exclusive: yes
+
+- name: "Grant passwordless sudo access to {{ USR.NAME }}"
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/{{ USR.NAME }}
+    line: "{{ USR.NAME }} ALL=(ALL) NOPASSWD: ALL"
+    create: yes
+    mode: '0440'
+    validate: 'visudo -cf %s'

@@ -1,0 +1,65 @@
+---
+#########################################
+## Installing Updates
+#########################################
+- hosts: all
+  name: Install updates and required packages
+
+  vars:
+    ubuntu_packages:
+      - curl
+      - wget
+      - zsh
+      - nano
+      - python3
+      - python3-pip
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+
+  roles:
+    - update
+
+#########################################
+## Installing Zsh
+#########################################
+- hosts: all
+  name: Install Oh-My-Zsh
+
+  roles:
+    - { role: oh-my-zsh-install, user: "{{ ansible_facts['env']['SUDO_USER'] | default('root') }}" }
+    - { role: oh-my-zsh-install, user: root }
+
+#########################################
+## Copy SSH public keys to nodes
+#########################################
+- hosts: all
+  name: Deploy users
+  tasks:
+    - name: Ensure sudo group has passwordless access
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/sudo-group-nopasswd
+        line: "%sudo ALL=(ALL) NOPASSWD: ALL"
+        create: yes
+        mode: '0440'
+        validate: 'visudo -cf %s'
+
+    - name: Set User Variables
+      set_fact:
+        USERMGMT_GROUPS:
+          - "sudo"
+
+    - name: "Import users"
+      set_fact:
+        LOOP_USERMGMT_USER:
+          - "{'NAME':'alex_dixon',        'SHELL':'/bin/zsh',   'GROUPS':'{{ USERMGMT_GROUPS | join(',') }}'}"
+          - "{'NAME':'dario_nieddu',      'SHELL':'/bin/zsh',   'GROUPS':'{{ USERMGMT_GROUPS | join(',') }}'}"
+          - "{'NAME':'dominik_seus',      'SHELL':'/bin/zsh',   'GROUPS':'{{ USERMGMT_GROUPS | join(',') }}'}"
+          - "{'NAME':'florian_dieterich', 'SHELL':'/bin/zsh',   'GROUPS':'{{ USERMGMT_GROUPS | join(',') }}'}"
+
+    - name: create users
+      include_tasks: tasks/add_user.yaml
+      loop: "{{ LOOP_USERMGMT_USER }}"
+      loop_control:
+        loop_var: USERMGMT_USER

@@ -1,0 +1,25 @@
+# Add Docker's official GPG key
+- name: Add Docker GPG apt Key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+# Add Docker repository
+- name: Add Docker repository
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+    state: present
+
+# Make sure all updates and packages are installed
+- name: APT - Upgrade
+  apt:
+    autoremove: yes
+    upgrade: safe
+  when: ansible_distribution == "Ubuntu"
+
+- name: APT - Install specified packages
+  apt:
+    name: "{{ ubuntu_packages }}"
+    state: present
+    update_cache: yes
+  when: ansible_distribution == "Ubuntu"

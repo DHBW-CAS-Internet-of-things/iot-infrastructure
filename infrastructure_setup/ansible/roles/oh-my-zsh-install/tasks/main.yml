@@ -1,0 +1,73 @@
+#########################################
+## Installing Zsh
+#########################################
+
+- name: Check if oh-my-zsh is installed for "{{ user }}"
+  become_user: "{{ user }}"
+
+  stat:
+    path: ~/.oh-my-zsh
+
+  register: omz
+
+##########
+
+- name: Download oh-my-zsh Installer
+
+  get_url: 
+    url: https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+    dest: "/tmp/install-oh-my-zsh.sh"
+    mode: '0755'
+
+  when: not omz.stat.exists
+
+##########
+
+- name: Run Installer
+  become_user: "{{ user }}"
+
+  command: "/tmp/install-oh-my-zsh.sh --unattended"
+
+  when: not omz.stat.exists
+
+##########
+
+- name: Remove the oh-my-zsh installer
+  
+  file:
+    dest: "/tmp/install-oh-my-zsh.sh"
+    state: absent
+
+  when: not omz.stat.exists
+
+##########
+
+- name: Make sure ZSH_THEME is set corectly
+  
+  become_user: "{{ user }}"
+
+  lineinfile:
+    path: ~/.zshrc
+    regexp: '^ZSH_THEME='
+    line: ZSH_THEME="agnoster"
+
+##########
+
+- name: Make sure ZSH_THEME_TERM_TAB_TITLE_IDLE is set corectly
+  
+  become_user: "{{ user }}"
+  
+  lineinfile:
+    path: ~/.zshrc
+    regexp: '^ZSH_THEME_TERM_TAB_TITLE_IDLE='
+    line: ZSH_THEME_TERM_TAB_TITLE_IDLE="%m:%~"
+
+##########
+
+- name: Set ZSH to the default shell
+
+  user:
+    name: "{{ user }}"
+    shell: /bin/zsh
+
+  when: not omz.stat.exists
