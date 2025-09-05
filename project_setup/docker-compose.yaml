@@ -1,8 +1,7 @@
-version: "3.9"
-
 services:
   traefik:
     image: traefik:v2.11
+    container_name: traefik
     command:
       - --entrypoints.web.address=:80
       - --providers.docker=true
@@ -18,17 +17,19 @@ services:
 
   n8n:
     image: n8nio/n8n:latest
+    container_name: n8n
     environment:
       # Make n8n live under /n8n and generate correct links/webhooks
-      - N8N_PATH=/n8n
-      - N8N_EDITOR_BASE_URL=http://${PUBLIC_IP}/n8n
-      - WEBHOOK_URL=http://${PUBLIC_IP}/n8n/
+      N8N_PATH: /n8n
+      N8N_EDITOR_BASE_URL: http://${PUBLIC_IP}/n8n
+      WEBHOOK_URL: http://${PUBLIC_IP}/n8n/
       # Simple auth for the editor (change these!)
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
       # Nice-to-have
-      - N8N_DIAGNOSTICS_ENABLED=false
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_SECURE_COOKIE: "false"
     labels:
       - traefik.enable=true
 
@@ -49,3 +50,67 @@ services:
     volumes:
       - ./n8n_data:/home/node/.n8n
     restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    volumes:
+      - "./grafana_data:/var/lib/grafana"
+      - "./grafana/provisioning:/etc/grafana/provisioning"
+    environment:
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+    labels:
+      - traefik.enable=true
+
+      # Redirect /grafana -> /grafana/
+      - traefik.http.routers.grafana-slash.rule=Path(`/grafana`)
+      - traefik.http.routers.grafana-slash.entrypoints=web
+      - traefik.http.routers.grafana-slash.middlewares=grafana-add-slash
+      - traefik.http.middlewares.grafana-add-slash.redirectregex.regex=^/grafana$
+      - traefik.http.middlewares.grafana-add-slash.redirectregex.replacement=/grafana/
+      - traefik.http.middlewares.grafana-add-slash.redirectregex.permanent=true
+
+      # Serve Grafana under /grafana/*
+      - traefik.http.routers.grafana.rule=PathPrefix(`/grafana`)
+      - traefik.http.routers.grafana.entrypoints=web
+      - traefik.http.services.grafana.loadbalancer.server.port=3000
+    depends_on:
+      - influxdb
+
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    volumes:
+      - "./influxdb_data:/var/lib/influxdb2"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: ${INFLUXDB_INIT_MODE}
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+    volumes:
+      - "./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro"
+    environment:
+      TELEGRAF_MQTT_SERVER: ${TELEGRAF_MQTT_SERVER}
+      TELEGRAF_MQTT_TOPICS: ${TELEGRAF_MQTT_TOPICS}
+      TELEGRAF_MQTT_USERNAME: ${TELEGRAF_MQTT_USERNAME}
+      TELEGRAF_MQTT_PASSWORD: ${TELEGRAF_MQTT_PASSWORD}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
