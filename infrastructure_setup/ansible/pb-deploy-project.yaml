@@ -1,14 +1,13 @@
----
-- name: Deploy project folders and prepare volume mounts
+- name: Deploy project_setup and prepare volume mounts
   hosts: all
   become: true
   gather_facts: false
 
   vars:
-    # Where the project should live on the remote
+    # Destination on the remote node where project_setup contents will be copied
     project_dir: "/home/ubuntu/project"
 
-    # Local source of config folders (relative to this playbook's location)
+    # Local source (relative to this playbook's location)
     # Repo layout: infrastructure_setup/ansible/<this playbook>
     # project_setup is at: ../../project_setup
     local_project_setup_dir: "{{ playbook_dir }}/../../project_setup"
@@ -22,7 +21,7 @@
     n8n_gid: 1000
 
   tasks:
-    - name: Ensure project directory exists
+    - name: Ensure destination directory exists
       ansible.builtin.file:
         path: "{{ project_dir }}"
         state: directory
@@ -30,23 +29,37 @@
         group: ubuntu
         mode: "0755"
 
-    - name: Copy grafana configuration folder
+    - name: Copy entire project_setup contents to destination
       ansible.builtin.copy:
-        src: "{{ local_project_setup_dir }}/grafana/"
-        dest: "{{ project_dir }}/grafana/"
-        owner: ubuntu
-        group: ubuntu
-        mode: "0755"
-        directory_mode: "0755"
-
-    - name: Copy telegraf configuration folder
-      ansible.builtin.copy:
-        src: "{{ local_project_setup_dir }}/telegraf/"
-        dest: "{{ project_dir }}/telegraf/"
+        src: "{{ local_project_setup_dir }}/"
+        dest: "{{ project_dir }}/"
         owner: ubuntu
         group: ubuntu
         mode: "0644"
         directory_mode: "0755"
+        force: true
+
+    - name: Ensure docker compose file has correct ownership and mode
+      ansible.builtin.file:
+        path: "{{ project_dir }}/docker-compose.yaml"
+        state: file
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: Check if .env exists
+      ansible.builtin.stat:
+        path: "{{ project_dir }}/.env"
+      register: env_stat
+
+    - name: Ensure .env ownership and mode when present
+      ansible.builtin.file:
+        path: "{{ project_dir }}/.env"
+        state: file
+        owner: ubuntu
+        group: ubuntu
+        mode: "0640"
+      when: env_stat.stat.exists | default(false)
 
     - name: Ensure telegraf.conf is readable
       ansible.builtin.file:
