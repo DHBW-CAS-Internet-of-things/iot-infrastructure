@@ -5,6 +5,7 @@ services:
     command:
       - --entrypoints.web.address=:80
       - --entrypoints.ha.address=:8123
+      - --entrypoints.influx.address=:8086
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       # OPTIONAL dashboard (don’t expose on the internet unless you lock it down):
@@ -12,6 +13,7 @@ services:
     ports:
       - "80:80"
       - "8123:8123"
+      - "8086:8086"
       # - "8080:8080" # Traefik dashboard if you uncomment the line above
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -92,8 +94,6 @@ services:
     image: influxdb:latest
     container_name: influxdb
     restart: unless-stopped
-    ports:
-      - "8086:8086"
     volumes:
       - "./influxdb_data:/var/lib/influxdb2"
     environment:
@@ -103,6 +103,12 @@ services:
       DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+    labels:
+      - traefik.enable=true
+      # Serve InfluxDB at the root on the dedicated 'influx' entrypoint (no subpath)
+      - traefik.http.routers.influx.rule=PathPrefix(`/`)
+      - traefik.http.routers.influx.entrypoints=influx
+      - traefik.http.services.influx.loadbalancer.server.port=8086
 
   telegraf:
     image: telegraf:latest
