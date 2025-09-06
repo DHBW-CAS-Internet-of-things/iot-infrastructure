@@ -140,6 +140,7 @@ services:
       # Serve Home Assistant under /homeassistant/*
       - traefik.http.routers.ha.rule=PathPrefix(`/homeassistant`)
       - traefik.http.routers.ha.entrypoints=web
-      - traefik.http.routers.ha.middlewares=ha-strip
+      - traefik.http.routers.ha.middlewares=ha-strip,ha-prefix
       - traefik.http.middlewares.ha-strip.stripprefix.prefixes=/homeassistant
+      - traefik.http.middlewares.ha-prefix.headers.customrequestheaders.X-Forwarded-Prefix=/homeassistant
       - traefik.http.services.ha.loadbalancer.server.port=8123

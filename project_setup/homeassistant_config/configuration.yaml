@@ -1,6 +1,8 @@
+homeassistant:
+  external_url: "http://141.72.13.185/homeassistant"
+  internal_url: "http://141.72.13.185/homeassistant"
+
 http:
   use_x_forwarded_for: true
-  # Prefer the specific Docker network CIDR or Traefik container IP.
-  # 172.16.0.0/12 covers default Docker networks if you’re unsure.
   trusted_proxies:
     - 172.16.0.0/12
