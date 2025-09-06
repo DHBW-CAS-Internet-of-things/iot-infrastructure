@@ -1,0 +1,86 @@
+---
+- name: Deploy project folders and prepare volume mounts
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    # Where the project should live on the remote
+    project_dir: "/home/ubuntu/project"
+
+    # Local source of config folders (relative to this playbook's location)
+    # Repo layout: infrastructure_setup/ansible/<this playbook>
+    # project_setup is at: ../../project_setup
+    local_project_setup_dir: "{{ playbook_dir }}/../../project_setup"
+
+    # Container runtime UIDs/GIDs used by official images
+    grafana_uid: 472
+    grafana_gid: 472
+    influxdb_uid: 1000
+    influxdb_gid: 1000
+    n8n_uid: 1000
+    n8n_gid: 1000
+
+  tasks:
+    - name: Ensure project directory exists
+      ansible.builtin.file:
+        path: "{{ project_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Copy grafana configuration folder
+      ansible.builtin.copy:
+        src: "{{ local_project_setup_dir }}/grafana/"
+        dest: "{{ project_dir }}/grafana/"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+        directory_mode: "0755"
+
+    - name: Copy telegraf configuration folder
+      ansible.builtin.copy:
+        src: "{{ local_project_setup_dir }}/telegraf/"
+        dest: "{{ project_dir }}/telegraf/"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+        directory_mode: "0755"
+
+    - name: Ensure telegraf.conf is readable
+      ansible.builtin.file:
+        path: "{{ project_dir }}/telegraf/telegraf.conf"
+        state: file
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: Create host directories for Docker volume mounts
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode | default('0750') }}"
+      loop:
+        - { path: "{{ project_dir }}/grafana_data", mode: "0750" }
+        - { path: "{{ project_dir }}/influxdb_data", mode: "0750" }
+        - { path: "{{ project_dir }}/n8n_data",     mode: "0750" }
+
+    - name: Set ownership for grafana data directory (UID:GID 472:472)
+      ansible.builtin.command: "chown -R {{ grafana_uid }}:{{ grafana_gid }} {{ project_dir }}/grafana_data"
+      changed_when: true
+
+    - name: Set ownership for influxdb data directory (UID:GID 1000:1000)
+      ansible.builtin.command: "chown -R {{ influxdb_uid }}:{{ influxdb_gid }} {{ project_dir }}/influxdb_data"
+      changed_when: true
+
+    - name: Set ownership for n8n data directory (UID:GID 1000:1000)
+      ansible.builtin.command: "chown -R {{ n8n_uid }}:{{ n8n_gid }} {{ project_dir }}/n8n_data"
+      changed_when: true
+
+    - name: Make grafana provisioning readable (mounted into container)
+      ansible.builtin.file:
+        path: "{{ project_dir }}/grafana/provisioning"
+        state: directory
+        mode: "0755"
+        recurse: yes
