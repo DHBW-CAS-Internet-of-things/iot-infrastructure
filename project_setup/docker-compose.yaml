@@ -115,3 +115,28 @@ services:
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
       INFLUXDB_ORG: ${INFLUXDB_ORG}
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    volumes:
+      - "./homeassistant_config:/config"
+      - "/etc/localtime:/etc/localtime:ro"
+    labels:
+      - traefik.enable=true
+
+      # Redirect /homeassistant -> /homeassistant/
+      - traefik.http.routers.ha-slash.rule=Path(`/homeassistant`)
+      - traefik.http.routers.ha-slash.entrypoints=web
+      - traefik.http.routers.ha-slash.middlewares=ha-add-slash
+      - traefik.http.middlewares.ha-add-slash.redirectregex.regex=^/homeassistant$
+      - traefik.http.middlewares.ha-add-slash.redirectregex.replacement=/homeassistant/
+      - traefik.http.middlewares.ha-add-slash.redirectregex.permanent=true
+
+      # Serve Home Assistant under /homeassistant/*
+      - traefik.http.routers.ha.rule=PathPrefix(`/homeassistant`)
+      - traefik.http.routers.ha.entrypoints=web
+      - traefik.http.routers.ha.middlewares=ha-strip
+      - traefik.http.middlewares.ha-strip.stripprefix.prefixes=/homeassistant
+      - traefik.http.services.ha.loadbalancer.server.port=8123
