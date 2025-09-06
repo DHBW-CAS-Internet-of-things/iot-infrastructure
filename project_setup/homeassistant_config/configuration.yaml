@@ -1,6 +1,6 @@
 homeassistant:
-  external_url: "http://141.72.13.185/homeassistant"
-  internal_url: "http://141.72.13.185/homeassistant"
+  external_url: "http://141.72.13.185:8123"
+  internal_url: "http://141.72.13.185:8123"
 
 http:
   use_x_forwarded_for: true
