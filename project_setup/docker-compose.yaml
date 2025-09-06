@@ -4,12 +4,14 @@ services:
     container_name: traefik
     command:
       - --entrypoints.web.address=:80
+      - --entrypoints.ha.address=:8123
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       # OPTIONAL dashboard (don’t expose on the internet unless you lock it down):
       # - --api.insecure=true
     ports:
       - "80:80"
+      - "8123:8123"
       # - "8080:8080" # Traefik dashboard if you uncomment the line above
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -119,3 +121,17 @@ services:
        INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
        INFLUXDB_ORG: ${INFLUXDB_ORG}
        INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    volumes:
+      - "./homeassistant_config:/config"
+      - "/etc/localtime:/etc/localtime:ro"
+    labels:
+      - traefik.enable=true
+      # Serve HA at the root of the dedicated 'ha' entrypoint (no subpath)
+      - traefik.http.routers.ha.rule=PathPrefix(`/`)
+      - traefik.http.routers.ha.entrypoints=ha
+      - traefik.http.services.ha.loadbalancer.server.port=8123
