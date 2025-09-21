@@ -141,3 +141,45 @@ services:
       - traefik.http.routers.ha.rule=PathPrefix(`/`)
       - traefik.http.routers.ha.entrypoints=ha
       - traefik.http.services.ha.loadbalancer.server.port=8123
+
+  # --- Web Audio front-end (Quasar + Nginx) under /audio/ ---
+  web-audio:
+    build: ./web-audio-interface
+    container_name: web-audio
+    restart: unless-stopped
+    environment:
+      - BACKEND_WS_URL='ws://clap-api:8000/ws/stream'
+    labels:
+      - traefik.enable=true
+
+      # Redirect /audio -> /audio/
+      - traefik.http.routers.audio-slash.rule=Path(`/audio`)
+      - traefik.http.routers.audio-slash.entrypoints=web
+      - traefik.http.routers.audio-slash.middlewares=audio-add-slash
+      - traefik.http.middlewares.audio-add-slash.redirectregex.regex=^/audio$
+      - traefik.http.middlewares.audio-add-slash.redirectregex.replacement=/audio/
+      - traefik.http.middlewares.audio-add-slash.redirectregex.permanent=true
+
+      # Serve the app under /audio/*
+      - traefik.http.routers.audio.rule=PathPrefix(`/audio`)
+      - traefik.http.routers.audio.entrypoints=web
+      - traefik.http.routers.audio.middlewares=audio-strip
+      - traefik.http.middlewares.audio-strip.stripprefix.prefixes=/audio
+      - traefik.http.services.audio.loadbalancer.server.port=80
+    depends_on:
+      - clap-api
+
+  # --- Clap Recognition API under /api/* ---
+  clap-api:
+    build: ./clap-recognition-api
+    container_name: clap-api
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+
+      # Route all /api/* traffic here and strip the /api prefix
+      - traefik.http.routers.clap-api.rule=PathPrefix(`/api`)
+      - traefik.http.routers.clap-api.entrypoints=web
+      - traefik.http.routers.clap-api.middlewares=clap-strip
+      - traefik.http.middlewares.clap-strip.stripprefix.prefixes=/api
+      - traefik.http.services.clap-api.loadbalancer.server.port=8000
