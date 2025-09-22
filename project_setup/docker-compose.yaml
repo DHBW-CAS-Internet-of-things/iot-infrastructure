@@ -168,6 +168,20 @@ services:
       - traefik.http.services.audio.loadbalancer.server.port=80
     depends_on:
       - clap-api
+  
+  forwarder:
+    depends_on:
+      api:
+        condition: service_started
+    build:
+      context: ./clap-recognition-mqtt-forwarder
+      args:
+        MQTT_HOST: 87.106.168.214
+        MQTT_PORT: 1883
+        MQTT_USERNAME: casiot
+        MQTT_PASSWORD: casiot25
+        MQTT_TOPIC: volume/sensor
+        API_URL: http://clap-api:8000/predict/volume
 
   # --- Clap Recognition API under /api/* ---
   clap-api:
