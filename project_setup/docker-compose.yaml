@@ -148,7 +148,7 @@ services:
     container_name: web-audio
     restart: unless-stopped
     environment:
-      - BACKEND_WS_URL='ws://clap-api:8000/ws/stream'
+      - BACKEND_WS_URL='ws://${PUBLIC_IP}:8000/ws/stream'
     labels:
       - traefik.enable=true
 
